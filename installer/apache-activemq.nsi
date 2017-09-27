@@ -21,7 +21,7 @@ SetCompressor /SOLID lzma
 
 ; The name of the installer and the file to write
 Name "ActiveMQ Server"
-OutFile "apache-activemq-${ACTIVEMQ_VERSION}.${INSTALLER_VERSION}.exe"
+OutFile "..\apache-activemq-${ACTIVEMQ_VERSION}.${INSTALLER_VERSION}.exe"
 
 ; The default installation directory
 InstallDir $PROGRAMFILES\ActiveMQ\apache-activemq-${ACTIVEMQ_VERSION}.${INSTALLER_VERSION}\
