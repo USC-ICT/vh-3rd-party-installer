@@ -42,7 +42,7 @@
         <destinationPolicy>
             <policyMap>
               <policyEntries>
-                <policyEntry topic=">" >
+                <policyEntry topic=">" producerFlowControl="false" memoryLimit="50mb">
                     <!-- The constantPendingMessageLimitStrategy is used to prevent
                          slow topic consumers to block producers and affect other consumers
                          by limiting the number of messages that are retained
@@ -54,6 +54,20 @@
                   <pendingMessageLimitStrategy>
                     <constantPendingMessageLimitStrategy limit="1000"/>
                   </pendingMessageLimitStrategy>
+                  <pendingSubscriberPolicy>
+                    <vmCursor />
+                  </pendingSubscriberPolicy>
+                </policyEntry>
+                <policyEntry queue=">" producerFlowControl="false" memoryLimit="50mb">
+                  <!-- Use VM cursor for better latency
+                       For more information, see:
+
+                       http://activemq.apache.org/message-cursors.html
+
+                  <pendingQueuePolicy>
+                    <vmQueueCursor/>
+                  </pendingQueuePolicy>
+                  -->
                 </policyEntry>
               </policyEntries>
             </policyMap>
@@ -110,12 +124,49 @@
         -->
         <transportConnectors>
             <!-- DOS protection, limit concurrent connections to 1000 and frame size to 100MB -->
-            <transportConnector name="openwire" uri="tcp://0.0.0.0:61616?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600"/>
-            <transportConnector name="amqp" uri="amqp://0.0.0.0:5672?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600"/>
+            <transportConnector name="secure_websocket" uri="wss://0.0.0.0:61615"/>
+            <transportConnector name="openwire" uri="tcp://0.0.0.0:61616?maximumConnections=1000&amp;wireformat.maxFrameSize=104857600&amp;wireFormat.maxInactivityDuration=0"/>
+            <transportConnector name="amqp" uri="amqp://0.0.0.0:5672?maximumConnections=1000&amp;wireformat.maxFrameSize=104857600"/>
             <transportConnector name="stomp" uri="stomp://0.0.0.0:61613?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600"/>
             <transportConnector name="mqtt" uri="mqtt://0.0.0.0:1883?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600"/>
             <transportConnector name="ws" uri="ws://0.0.0.0:61614?maximumConnections=1000&amp;wireFormat.maxFrameSize=104857600"/>
         </transportConnectors>
+
+		<!-- this is taken verbatium from http://activemq.apache.org/websockets.html 
+			to support secure websocket connection. Needed to use Google Chrome ASR API.
+			the broker.ks should contain the server SSL certificate
+			
+			to make the certificate see tutorial (OSX)
+			
+			https://gist.github.com/jonathantneal/774e4b0b3d4d739cbc53
+
+or
+
+sudo openssl genrsa -out server.key 2048
+sudo openssl genrsa -out ssl/googleasr.dev.key 2048
+sudo openssl rsa -in ssl/googleasr.dev.key -out ssl/googleasr.dev.key.rsa 
+sudo openssl req -new -key server.key -subj "/C=/ST=/L=/O=/CN=/emailAddress=/" -out server.csr
+sudo openssl req -new -key ssl/googleasr.dev.key.rsa -subj "/C=US/ST=California/L=Los Angeles/O=ICT/CN=googleasr.dev/" -out ssl/googleasr.dev.csr -config ssl/googleasr.dev.conf 
+sudo openssl x509 -req -days 3650 -in server.csr -signkey server.key -out server.crt
+sudo openssl x509 -req -extensions v3_req -days 3650 -in ssl/googleasr.dev.csr -signkey ssl/googleasr.dev.key.rsa -out ssl/googleasr.dev.crt -extfile ssl/googleasr.dev.conf
+
+mv server.key ../../build/etc/
+mv server.crt ../../build/etc/
+mv ssl/googleasr.dev.key ../../build/etc/ssl/
+mv ssl/googleasr.dev.crt ../../build/etc/ssl/
+
+sudo openssl pkcs12 -export -in ../../build/etc/ssl/googleasr.dev.crt -inkey ../../build/etc/ssl/googleasr.dev.key -name googleasr.dev -pass pass:password > ssl/googleasr.dev.p12
+rm ../activemq/conf/broker.ks
+keytool -importkeystore -srckeystore ssl/googleasr.dev.p12 -srcstorepass password -destkeystore ../activemq/conf/broker.ks -deststorepass password -srcstoretype pkcs12 -alias googleasr.dev
+
+		-->
+        <sslContext>
+            <sslContext 
+            	keyStore="file:${activemq.conf}/broker.ks"
+              	keyStorePassword="password" 
+              	trustStore="file:${activemq.conf}/broker.ts"
+              	trustStorePassword="password"/>
+        </sslContext>
 
         <!-- destroy the spring context on shutdown to stop jetty -->
         <shutdownHooks>

@@ -44,4 +44,4 @@ rem
 :startup
 "%_REALPATH%wrapper.exe" -r %_WRAPPER_CONF%
 if not errorlevel 1 goto :eof
-pause
+rem pause
