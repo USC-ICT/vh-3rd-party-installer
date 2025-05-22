@@ -13,13 +13,13 @@ pushd installer
 popd
 
 @rem sign the installer
-signtool sign /t http://timestamp.digicert.com apache-activemq-5.12.0.0.exe
+signtool sign /t http://timestamp.digicert.com apache-activemq-5.16.8.0.exe
 
 
 @rem generate the 3rd Party installer
 pushd installer
-%NSIS% /DTHIRD_PARTY_VERSION=0.1.7 vh-3rd-party-installer.nsi
+%NSIS% /DTHIRD_PARTY_VERSION=0.1.9 vh-3rd-party-installer.nsi
 popd
 
 @rem sign the installer
-signtool sign /t http://timestamp.digicert.com vh-3rd-party-installer-0.1.7.exe
+signtool sign /t http://timestamp.digicert.com vh-3rd-party-installer-0.1.9.exe

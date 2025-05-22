@@ -5,13 +5,13 @@
 ; General
 
 !define VHBUILD_PATH "..\"
-!define AMQ_PATH     "apache-activemq-5.12.0.0.exe"
+!define AMQ_PATH     "apache-activemq-5.16.8.0.exe"
 !define NET35_PATH   "net35\dotNetFx35setup.exe"
 !define DX_PATH      "dxsdk"
 !define DX_EXE       "DXSETUP.exe"
 !define VS2015_PATH  "vsredist2015\vcredist_x86_vs2015u2.exe"
 
-!define AMQ_DESC     "ActiveMQ Server (5.12.0.0)"
+!define AMQ_DESC     "ActiveMQ Server (5.16.8.0)"
 !define NET35_DESC   ".NET Framework Redistributable (3.5)"
 !define DX_DESC      "DirectX Redistributable (August 2009)"
 !define VS2015_DESC  "Visual Studio 2015 Update 2 Redistributable"

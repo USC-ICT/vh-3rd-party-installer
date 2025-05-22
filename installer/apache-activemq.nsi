@@ -12,7 +12,7 @@ SetCompressor /SOLID lzma
 ;--------------------------------
 ;General
 
-!define ACTIVEMQ_VERSION  5.12.0
+!define ACTIVEMQ_VERSION  5.16.8
 !define INSTALLER_VERSION     0
 
 !define ACTIVEMQ_SOURCE_DIR "..\apache-activemq"
