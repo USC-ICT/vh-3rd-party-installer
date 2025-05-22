@@ -9,3 +9,4 @@ Pear users can install it by running:
     pear install pecl.php.net/stomp
 
 Then you should add "extension=stomp.so" to php.ini
+

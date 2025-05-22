@@ -60,3 +60,4 @@ Licensing
    with a JVM supporting the Java Cryptography extensions
    <http://java.sun.com/javase/technologies/security/>.  ActiveMQ does 
    not include these libraries itself, but is designed to use them.
+

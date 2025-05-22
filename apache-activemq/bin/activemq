@@ -1,4 +1,15 @@
 #!/bin/sh
+
+### BEGIN INIT INFO
+# Provides:          activemq
+# Required-Start:    $remote_fs $network $syslog
+# Required-Stop:     $remote_fs $network $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Starts ActiveMQ
+# Description:       Starts ActiveMQ Message Broker Server
+### END INIT INFO
+
 # ------------------------------------------------------------------------
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -29,9 +40,6 @@
 #
 # For more information on configuring the script, see http://activemq.apache.org/unix-shell-script.html
 #
-#
-# Authors:
-# Marc Schoechlin <ms@256bit.org>
 
 # ------------------------------------------------------------------------
 # IMPROVED DEBUGGING (execute with bash -x)
@@ -98,7 +106,14 @@ if [ -z "$ACTIVEMQ_BASE" ] ; then
   ACTIVEMQ_BASE="$ACTIVEMQ_HOME"
 fi
 
-ACTIVEMQ_CLASSPATH="$ACTIVEMQ_BASE/../lib/"
+# Configure user specified classpath here or externally using this variable
+if [ -z "$ACTIVEMQ_USER_CLASSPATH" ] ; then
+    ACTIVEMQ_USER_CLASSPATH=""
+fi
+
+# ActiveMQ Classpath configuration
+ACTIVEMQ_CLASSPATH="$ACTIVEMQ_BASE/../lib/:$ACTIVEMQ_USER_CLASSPATH"
+
 # Active MQ configuration directory
 if [ -z "$ACTIVEMQ_CONF" ] ; then
 
@@ -227,7 +242,7 @@ if [ -z "$JAVACMD" ] || [ "$JAVACMD" = "auto" ] ; then
 fi
 
 # Hm, we still do not know the location of the java binary
-if [ ! -x "$JAVACMD" ] ; then
+if [ -z "$JAVACMD" ] || [ "$JAVACMD" = "auto" ] || [ ! -x "$JAVACMD" ] ; then
     JAVACMD=`which java 2> /dev/null `
     if [ -z "$JAVACMD" ] ; then
         JAVACMD=java
@@ -307,65 +322,167 @@ invokeJar(){
       DOIT_POSTFIX=" - $ACTIVEMQ_USER"
       echo "INFO: changing to user '$ACTIVEMQ_USER' to invoke java"
    fi
+
+   # Get Java version
+   # Use in priority xpg4 awk or nawk on SunOS as standard awk is outdated
+   AWK=awk
+   if ${solaris}; then
+     if [ -x /usr/xpg4/bin/awk ]; then
+       AWK=/usr/xpg4/bin/awk
+     elif [ -x /usr/bin/nawk ]; then
+       AWK=/usr/bin/nawk
+     fi
+   fi
+   VERSION=`"${JAVACMD}" -version 2>&1 | ${AWK} -F '"' '/version/ {print $2}' | sed -e 's/_.*//g; s/^1\.//g; s/\..*//g; s/-.*//g;'`
+
    # Execute java binary
    if [ -n "$TASK_TODO" ] && [ "$TASK_TODO" != "stop" ];then
-      $EXEC_OPTION $DOIT_PREFIX "\"$JAVACMD\" $ACTIVEMQ_OPTS $ACTIVEMQ_DEBUG_OPTS \
+      if [ -z "$ACTIVEMQ_OUT" ]; then
+         ACTIVEMQ_OUT="/dev/null"
+      fi
+      if [ "${VERSION}" -gt "8" ]; then
+        $EXEC_OPTION $DOIT_PREFIX "\"$JAVACMD\" $ACTIVEMQ_OPTS $ACTIVEMQ_DEBUG_OPTS \
+              --add-reads=java.xml=java.logging \
+              --add-opens java.base/java.security=ALL-UNNAMED \
+              --add-opens java.base/java.net=ALL-UNNAMED \
+              --add-opens java.base/java.lang=ALL-UNNAMED \
+              --add-opens java.base/java.util=ALL-UNNAMED \
+              --add-opens java.naming/javax.naming.spi=ALL-UNNAMED \
+              --add-opens java.rmi/sun.rmi.transport.tcp=ALL-UNNAMED \
+              --add-opens java.base/java.util.concurrent=ALL-UNNAMED \
+              --add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED \
+              --add-exports=java.base/sun.net.www.protocol.http=ALL-UNNAMED \
+              --add-exports=java.base/sun.net.www.protocol.https=ALL-UNNAMED \
+              --add-exports=java.base/sun.net.www.protocol.jar=ALL-UNNAMED \
+              --add-exports=jdk.xml.dom/org.w3c.dom.html=ALL-UNNAMED \
+              --add-exports=jdk.naming.rmi/com.sun.jndi.url.rmi=ALL-UNNAMED \
               -Dactivemq.classpath=\"${ACTIVEMQ_CLASSPATH}\" \
               -Dactivemq.home=\"${ACTIVEMQ_HOME}\" \
               -Dactivemq.base=\"${ACTIVEMQ_BASE}\" \
               -Dactivemq.conf=\"${ACTIVEMQ_CONF}\" \
               -Dactivemq.data=\"${ACTIVEMQ_DATA}\" \
               $ACTIVEMQ_CYGWIN \
-              -jar \"${ACTIVEMQ_HOME}/bin/activemq.jar\" $COMMANDLINE_ARGS >/dev/null 2>&1 &
+              -jar \"${ACTIVEMQ_HOME}/bin/activemq.jar\" $COMMANDLINE_ARGS >> $ACTIVEMQ_OUT 2>&1 &
               RET=\"\$?\"; APID=\"\$!\";
               echo \$APID > "${PIDFILE}";
               echo \"INFO: pidfile created : '${PIDFILE}' (pid '\$APID')\";exit \$RET" $DOIT_POSTFIX
-      RET="$?"
+        RET="$?"
+      else
+        $EXEC_OPTION $DOIT_PREFIX "\"$JAVACMD\" $ACTIVEMQ_OPTS $ACTIVEMQ_DEBUG_OPTS \
+              -Dactivemq.classpath=\"${ACTIVEMQ_CLASSPATH}\" \
+              -Dactivemq.home=\"${ACTIVEMQ_HOME}\" \
+              -Dactivemq.base=\"${ACTIVEMQ_BASE}\" \
+              -Dactivemq.conf=\"${ACTIVEMQ_CONF}\" \
+              -Dactivemq.data=\"${ACTIVEMQ_DATA}\" \
+              $ACTIVEMQ_CYGWIN \
+              -jar \"${ACTIVEMQ_HOME}/bin/activemq.jar\" $COMMANDLINE_ARGS >> $ACTIVEMQ_OUT 2>&1 &
+              RET=\"\$?\"; APID=\"\$!\";
+              echo \$APID > "${PIDFILE}";
+              echo \"INFO: pidfile created : '${PIDFILE}' (pid '\$APID')\";exit \$RET" $DOIT_POSTFIX
+        RET="$?"
+      fi
    elif [ -n "$TASK_TODO" ] && [ "$TASK_TODO" = "stop" ];then
           SPID="`cat "${PIDFILE}"`"
-          $EXEC_OPTION $DOIT_PREFIX "\"$JAVACMD\" $ACTIVEMQ_OPTS $ACTIVEMQ_DEBUG_OPTS \
-              -Dactivemq.classpath=\"${ACTIVEMQ_CLASSPATH}\" \
-              -Dactivemq.home=\"${ACTIVEMQ_HOME}\" \
-              -Dactivemq.base=\"${ACTIVEMQ_BASE}\" \
-              -Dactivemq.conf=\"${ACTIVEMQ_CONF}\" \
-              -Dactivemq.data=\"${ACTIVEMQ_DATA}\" \
-              $ACTIVEMQ_CYGWIN \
-              -jar \"${ACTIVEMQ_HOME}/bin/activemq.jar\" $COMMANDLINE_ARGS --pid $SPID &
-              RET=\"\$?\"; APID=\"\$!\";
-              echo \$APID > "${PIDFILE}.stop"; exit \$RET" $DOIT_POSTFIX
-      RET="$?"
+          if [ "${VERSION}" -gt "8" ]; then
+              $EXEC_OPTION $DOIT_PREFIX "\"$JAVACMD\" $ACTIVEMQ_OPTS $ACTIVEMQ_DEBUG_OPTS \
+                --add-reads=java.xml=java.logging \
+                --add-opens java.base/java.security=ALL-UNNAMED \
+                --add-opens java.base/java.net=ALL-UNNAMED \
+                --add-opens java.base/java.lang=ALL-UNNAMED \
+                --add-opens java.base/java.util=ALL-UNNAMED \
+                --add-opens java.naming/javax.naming.spi=ALL-UNNAMED \
+                --add-opens java.rmi/sun.rmi.transport.tcp=ALL-UNNAMED \
+                --add-opens java.base/java.util.concurrent=ALL-UNNAMED \
+                --add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED \
+                --add-exports=java.base/sun.net.www.protocol.http=ALL-UNNAMED \
+                --add-exports=java.base/sun.net.www.protocol.https=ALL-UNNAMED \
+                --add-exports=java.base/sun.net.www.protocol.jar=ALL-UNNAMED \
+                --add-exports=jdk.xml.dom/org.w3c.dom.html=ALL-UNNAMED \
+                --add-exports=jdk.naming.rmi/com.sun.jndi.url.rmi=ALL-UNNAMED \
+                -Dactivemq.classpath=\"${ACTIVEMQ_CLASSPATH}\" \
+                -Dactivemq.home=\"${ACTIVEMQ_HOME}\" \
+                -Dactivemq.base=\"${ACTIVEMQ_BASE}\" \
+                -Dactivemq.conf=\"${ACTIVEMQ_CONF}\" \
+                -Dactivemq.data=\"${ACTIVEMQ_DATA}\" \
+                $ACTIVEMQ_CYGWIN \
+                -jar \"${ACTIVEMQ_HOME}/bin/activemq.jar\" $COMMANDLINE_ARGS --pid $SPID &
+                RET=\"\$?\"; APID=\"\$!\";
+                echo \$APID > "${PIDFILE}.stop"; exit \$RET" $DOIT_POSTFIX
+              RET="$?"
+          else
+              $EXEC_OPTION $DOIT_PREFIX "\"$JAVACMD\" $ACTIVEMQ_OPTS $ACTIVEMQ_DEBUG_OPTS \
+                -Dactivemq.classpath=\"${ACTIVEMQ_CLASSPATH}\" \
+                -Dactivemq.home=\"${ACTIVEMQ_HOME}\" \
+                -Dactivemq.base=\"${ACTIVEMQ_BASE}\" \
+                -Dactivemq.conf=\"${ACTIVEMQ_CONF}\" \
+                -Dactivemq.data=\"${ACTIVEMQ_DATA}\" \
+                $ACTIVEMQ_CYGWIN \
+                -jar \"${ACTIVEMQ_HOME}/bin/activemq.jar\" $COMMANDLINE_ARGS --pid $SPID &
+                RET=\"\$?\"; APID=\"\$!\";
+                echo \$APID > "${PIDFILE}.stop"; exit \$RET" $DOIT_POSTFIX
+              RET="$?"
+          fi
    else
-      $EXEC_OPTION $DOIT_PREFIX "\"$JAVACMD\" $ACTIVEMQ_OPTS $ACTIVEMQ_DEBUG_OPTS \
-              -Dactivemq.classpath=\"${ACTIVEMQ_CLASSPATH}\" \
-              -Dactivemq.home=\"${ACTIVEMQ_HOME}\" \
-              -Dactivemq.base=\"${ACTIVEMQ_BASE}\" \
-              -Dactivemq.conf=\"${ACTIVEMQ_CONF}\" \
-              -Dactivemq.data=\"${ACTIVEMQ_DATA}\" \
-              $ACTIVEMQ_CYGWIN \
-              -jar \"${ACTIVEMQ_HOME}/bin/activemq.jar\" $COMMANDLINE_ARGS" $DOIT_POSTFIX
-      RET="$?"
+      if [ "${VERSION}" -gt "8" ]; then
+        $EXEC_OPTION $DOIT_PREFIX "\"$JAVACMD\" $ACTIVEMQ_OPTS $ACTIVEMQ_DEBUG_OPTS \
+          --add-reads=java.xml=java.logging \
+          --add-opens java.base/java.security=ALL-UNNAMED \
+          --add-opens java.base/java.net=ALL-UNNAMED \
+          --add-opens java.base/java.lang=ALL-UNNAMED \
+          --add-opens java.base/java.util=ALL-UNNAMED \
+          --add-opens java.naming/javax.naming.spi=ALL-UNNAMED \
+          --add-opens java.rmi/sun.rmi.transport.tcp=ALL-UNNAMED \
+          --add-opens java.base/java.util.concurrent=ALL-UNNAMED \
+          --add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED \
+          --add-exports=java.base/sun.net.www.protocol.http=ALL-UNNAMED \
+          --add-exports=java.base/sun.net.www.protocol.https=ALL-UNNAMED \
+          --add-exports=java.base/sun.net.www.protocol.jar=ALL-UNNAMED \
+          --add-exports=jdk.xml.dom/org.w3c.dom.html=ALL-UNNAMED \
+          --add-exports=jdk.naming.rmi/com.sun.jndi.url.rmi=ALL-UNNAMED \
+          -Dactivemq.classpath=\"${ACTIVEMQ_CLASSPATH}\" \
+          -Dactivemq.home=\"${ACTIVEMQ_HOME}\" \
+          -Dactivemq.base=\"${ACTIVEMQ_BASE}\" \
+          -Dactivemq.conf=\"${ACTIVEMQ_CONF}\" \
+          -Dactivemq.data=\"${ACTIVEMQ_DATA}\" \
+          $ACTIVEMQ_CYGWIN \
+          -jar \"${ACTIVEMQ_HOME}/bin/activemq.jar\" $COMMANDLINE_ARGS" $DOIT_POSTFIX
+        RET="$?"
+      else
+        $EXEC_OPTION $DOIT_PREFIX "\"$JAVACMD\" $ACTIVEMQ_OPTS $ACTIVEMQ_DEBUG_OPTS \
+          -Dactivemq.classpath=\"${ACTIVEMQ_CLASSPATH}\" \
+          -Dactivemq.home=\"${ACTIVEMQ_HOME}\" \
+          -Dactivemq.base=\"${ACTIVEMQ_BASE}\" \
+          -Dactivemq.conf=\"${ACTIVEMQ_CONF}\" \
+          -Dactivemq.data=\"${ACTIVEMQ_DATA}\" \
+          $ACTIVEMQ_CYGWIN \
+          -jar \"${ACTIVEMQ_HOME}/bin/activemq.jar\" $COMMANDLINE_ARGS" $DOIT_POSTFIX
+        RET="$?"
+      fi
    fi
    return $RET
 }
 
-# Check if ActiveMQ is running
+# Check if a java process (ActiveMQ) with pid found in file is running
 #
-# @RET  : 0 => the activemq process is running
-#         1 => process id in $ACTIVEMQ_PIDFILE does not exist anymore
-#         2 => something is wrong with the pid file
+# @ARG1 : the name of the PID-file
+# @RET  : 0 => the java process is running
+#         1 => process id in PID-file does not exist anymore
+#         2 => something is wrong with the PID-file
 #
 # Note: This function uses globally defined variables
 # - $ACTIVEMQ_PIDFILE : the name of the pid file
 
 
 checkRunning(){
-    if [ -f "$ACTIVEMQ_PIDFILE" ]; then
-       if  [ -z "`cat $ACTIVEMQ_PIDFILE`" ];then
-        echo "ERROR: Pidfile '$ACTIVEMQ_PIDFILE' exists but contains no pid"
+    local pidfile="${1}"
+
+    if [ -f $pidfile ]; then
+       if  [ -z "`cat "$pidfile"`" ];then
+        echo "ERROR: Pidfile '$pidfile' exists but contains no pid"
         return 2
        fi
-       ACTIVEMQ_PID="`cat ${ACTIVEMQ_PIDFILE}`"
-       RET="`ps -p "${ACTIVEMQ_PID}"|grep java`"
+       local activemq_pid="`cat "$pidfile"`"
+       local RET="`ps -eo "pid,args" | grep "^\s*$activemq_pid\s.*java"`"
        if [ -n "$RET" ];then
          return 0;
        else
@@ -376,24 +493,6 @@ checkRunning(){
     fi
 }
 
-checkStopRunning(){
-    PID_STOP="${ACTIVEMQ_PIDFILE}.stop"
-    if [ -f "$PID_STOP" ]; then
-       if  [ -z "`cat $PID_STOP`" ];then
-        echo "ERROR: Pidfile os stop process '$PID_STOP' exists but contains no pid"
-        return 2
-       fi
-       THEPID=`cat ${PID_STOP}`
-       RET=`ps -p $THEPID|grep java`
-       if [ -n "$RET" ];then
-         return 0;
-       else
-         return 1;
-       fi
-    else
-         return 1;
-    fi
-}
 
 # Check if ActiveMQ is running
 #
@@ -405,7 +504,7 @@ checkStopRunning(){
 
 
 invoke_status(){
-    if ( checkRunning );then
+    if ( checkRunning "$ACTIVEMQ_PIDFILE" );then
          PID="`cat $ACTIVEMQ_PIDFILE`"
          echo "ActiveMQ is running (pid '$PID')"
          exit 0
@@ -426,7 +525,7 @@ invoke_status(){
 # - $ACTIVEMQ_SSL_OPTS     : options for SSL encryption
 
 invoke_start(){
-    if ( checkRunning );then
+  if ( checkRunning "$ACTIVEMQ_PIDFILE" );then
       PID="`cat $ACTIVEMQ_PIDFILE`"
       echo "INFO: Process with pid '$PID' is already running"
       exit 0
@@ -452,7 +551,7 @@ invoke_start(){
 # - $ACTIVEMQ_SSL_OPTS     : options for SSL encryption
 
 invoke_console(){
-    if ( checkRunning );then
+    if ( checkRunning "$ACTIVEMQ_PIDFILE" );then
       echo "ERROR: ActiveMQ is already running"
       exit 1
     fi
@@ -480,7 +579,7 @@ invoke_console(){
 
 
 invoke_kill(){
-    if ( checkRunning ); then
+    if ( checkRunning "$ACTIVEMQ_PIDFILE" );then
        ACTIVEMQ_PID="`cat ${ACTIVEMQ_PIDFILE}`"
        echo "INFO: sending SIGKILL to pid '$ACTIVEMQ_PID'"
        kill -KILL $ACTIVEMQ_PID
@@ -504,7 +603,7 @@ invoke_kill(){
 
 invoke_stop(){
     RET="1"
-    if ( checkRunning );then
+    if ( checkRunning "$ACTIVEMQ_PIDFILE" );then
        ACTIVEMQ_OPTS="$ACTIVEMQ_OPTS $ACTIVEMQ_SSL_OPTS"
        COMMANDLINE_ARGS="$COMMANDLINE_ARGS $ACTIVEMQ_SUNJMX_CONTROL"
 
@@ -517,15 +616,15 @@ invoke_stop(){
        i=0
        echo "INFO: Waiting at least $ACTIVEMQ_KILL_MAXSECONDS seconds for regular process termination of pid '$ACTIVEMQ_PID' : "
        while [ "$i" -le "$ACTIVEMQ_KILL_MAXSECONDS" ]; do
-         if [ ! checkStopRunning ];then
-            if [ ! checkRunning ]; then
+         if ( ! checkRunning "${ACTIVEMQ_PIDFILE}.stop" ); then
+            if ( ! checkRunning "$ACTIVEMQ_PIDFILE" ); then
                echo " FINISHED"
                FOUND="1"
             fi
             break
          fi
 
-         if (checkRunning);then
+         if ( checkRunning "$ACTIVEMQ_PIDFILE" );then
             sleep 1
             printf  "."
          else
@@ -573,12 +672,12 @@ invoke_task(){
     ACTIVEMQ_OPTS="$ACTIVEMQ_OPTS $ACTIVEMQ_SSL_OPTS"
 
     if [ "$CHECKRUNNING" = "checkforrunning" ];then
-       if ( ! checkRunning );then
+       if ( ! checkRunning "$ACTIVEMQ_PIDFILE" );then
          echo "Activemq is not running."
          exit 1
        fi
     elif [ "$CHECKRUNNING" = "checkfornotrunning" ];then
-      if ( checkRunning );then
+      if ( checkRunning "$ACTIVEMQ_PIDFILE" );then
          echo "Activemq is running."
          exit 1
        fi
@@ -594,9 +693,6 @@ invoke_task(){
     fi
     invokeJar "$ACTIVEMQ_PIDFILE"
     RET="$?"
-    if [ "$RET" != "0" ];then
-       echo "ERROR: task failed"
-    fi
     exit $RET
 }
 
@@ -635,7 +731,7 @@ case "$1" in
     invoke_status
     ;;
   restart)
-    if ( checkRunning );then
+    if ( checkRunning "$ACTIVEMQ_PIDFILE" );then
       $0 stop
       echo
     fi
@@ -650,44 +746,14 @@ case "$1" in
     exit $?
     ;;
   stop)
-    invoke_stop 
+    invoke_stop
     exit $?
     ;;
   kill)
     invoke_kill
     exit $?
     ;;
-  decrypt|encrypt|create)
-    invoke_task checknotforrunning
-    exit $?
-    ;;
-  export)
-    invoke_task checkfornotrunning
-    exit $?
-    ;;
-  query|bstat|dstat|purge)
-    # Only check for a running broker if "--jmxurl" is part of the COMMANDLINE_ARGS
-    if (echo "$COMMANDLINE_ARGS"|grep -q -- "--jmxurl");then
-      invoke_task checknotforrunning
-      RET="$?"
-    else
-      invoke_task checkforrunning
-      RET="$?"
-    fi
-    exit $RET
-    ;;
-  browse)
-    # Only check for a running broker if "--amqurl" is part of the COMMANDLINE_ARGS
-    if (echo "$COMMANDLINE_ARGS"|grep -q -- "--amqurl");then
-      invoke_task checknotforrunning
-      RET="$?"
-    else
-      invoke_task checkforrunning
-      RET="$?"
-    fi
-    exit $RET
-    ;;
   *)
-    invoke_task checkforrunning
+    invoke_task
     exit $?
 esac

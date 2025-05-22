@@ -49,3 +49,4 @@ rem
 "%_REALPATH%wrapper.exe" -i %_WRAPPER_CONF% %_ACTIVEMQ_HOME% %_ACTIVEMQ_BASE%
 if not errorlevel 1 goto :eof
 pause
+

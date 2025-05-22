@@ -14,11 +14,8 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 -->
-
-
-
-
-
+<%-- Workaround for https://ops4j1.jira.com/browse/PAXWEB-1070 --%>
+<%@include file="WEB-INF/jspf/headertags.jspf" %>
 
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 
@@ -115,7 +112,7 @@
             <div class="footer_l">
                 <div class="footer_r">
                     <div>
-                        Copyright 2005-2013 The Apache Software Foundation.
+                        Copyright 2005-2024 The Apache Software Foundation.
 
                         (<a href="?printable=true">printable version</a>)
                     </div>

@@ -1,4 +1,4 @@
-<%@ page contentType="text/xml;charset=ISO-8859-1"%>
+<%@ page contentType="text/xml;charset=UTF-8"%>
 <%--
     Licensed to the Apache Software Foundation (ASF) under one or more
     contributor license agreements.  See the NOTICE file distributed with
@@ -15,9 +15,11 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 --%>
+<%-- Workaround for https://ops4j1.jira.com/browse/PAXWEB-1070 --%>
+<%@include file="../WEB-INF/jspf/headertags.jspf" %>
 <topics>
 <c:forEach items="${requestContext.brokerQuery.topics}" var="row">
-<topic name="${row.name}">
+<topic name="<c:out value="${row.name}"/> ">
 
   <stats size="${row.queueSize}"
          consumerCount="${row.consumerCount}"

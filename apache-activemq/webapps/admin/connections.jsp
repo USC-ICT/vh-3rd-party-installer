@@ -14,6 +14,8 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 --%>
+<%-- Workaround for https://ops4j1.jira.com/browse/PAXWEB-1070 --%>
+<%@include file="WEB-INF/jspf/headertags.jspf" %>
 <html>
 <head>
 <c:set var="pageTitle" value="Connections"/>
@@ -44,7 +46,8 @@
 <jms:forEachConnection broker="${requestContext.brokerQuery}" connectorName="${connectorName}"
 	connection="con" connectionName="conName">
 <tr>
-	<td><a href="<c:url value='connection.jsp?connectionID=${conName}' />"><c:out value="${conName}" /></a></td>
+
+	<td><a href="<c:url value='connection.jsp'><c:param name='connectionID' value='${conName}' /></c:url>"><c:out value="${conName}" /></a></td>
 	<td><c:out value="${con.remoteAddress}" /></td>
 	<td><c:out value="${con.active}" /></td>
 	<td><c:out value="${con.slow}" /></td>
@@ -54,7 +57,6 @@
 </table>
 
 </c:forEach>
-
 <div style="margin-top: 5em">
 <h2>Network Connectors</h2>
 

@@ -68,3 +68,4 @@ as follows (system properties shown, but this option is also available when usin
    -Dwebconsole.jmx.url=service:jmx:rmi:///jndi/rmi://serverA:1099/jmxrmi,service:jmx:rmi:///jndi/rmi://serverB:1099/jmxrmi
 With this configuration the web console with switch to the slave as the master is no longer
 available and back as soon as the master is back up.
+
